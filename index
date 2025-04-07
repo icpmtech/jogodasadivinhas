@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo: 1 a 100 e A a Z</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 30px;
+    }
+
+    .jogo {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .titulo {
+      margin-bottom: 5px;
+      font-size: 1.4rem;
+    }
+
+    .tentativas {
+      margin-bottom: 15px;
+    }
+
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: bold;
+      transition: transform 0.2s, background-color 0.3s;
+    }
+
+    .card:hover {
+      transform: scale(1.05);
+    }
+
+    .card.certa {
+      background-color: #b9fbc0 !important;
+    }
+
+    .card.errada {
+      background-color: #ffb3b3;
+    }
+
+    .card.desativada {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .resultado {
+      font-size: 1.1rem;
+      font-weight: bold;
+      min-height: 1.5em;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎯 Jogo de Adivinha: 1 a 100 & A a Z</h1>
+
+  <!-- Jogo dos Números -->
+  <div class="jogo">
+    <div class="titulo">🔢 Adivinha o Número (1 a 100)</div>
+    <div class="tentativas" id="tentativas-num">Tentativas: 0</div>
+    <div class="cards-container" id="cards-numeros"></div>
+    <div class="resultado" id="resultado-num"></div>
+  </div>
+
+  <!-- Jogo das Letras -->
+  <div class="jogo">
+    <div class="titulo">🔤 Adivinha a Letra (A a Z)</div>
+    <div class="tentativas" id="tentativas-let">Tentativas: 0</div>
+    <div class="cards-container" id="cards-letras"></div>
+    <div class="resultado" id="resultado-let"></div>
+  </div>
+
+  <script>
+    function tocarSom(frequencia) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequencia, audioCtx.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function criarJogo({ tipo, elementos, secreto, cardsId, resultadoId, tentativasId }) {
+      const container = document.getElementById(cardsId);
+      const resultado = document.getElementById(resultadoId);
+      const tentativasEl = document.getElementById(tentativasId);
+      let tentativas = 0;
+
+      container.innerHTML = "";
+      resultado.textContent = "";
+      tentativasEl.textContent = "Tentativas: 0";
+
+      elementos.forEach(item => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.textContent = item;
+        card.addEventListener("click", () => {
+          tentativas++;
+          tentativasEl.textContent = `Tentativas: ${tentativas}`;
+          if (item === secreto) {
+            card.classList.add("certa");
+            resultado.textContent = `🎉 Acertaste! Era ${item}.`;
+            tocarSom(800);
+            desativarTodos(container);
+            setTimeout(() => {
+              const novoSecreto = escolherAleatorio(elementos);
+              criarJogo({ tipo, elementos, secreto: novoSecreto, cardsId, resultadoId, tentativasId });
+            }, 2000);
+          } else {
+            card.classList.add("errada", "desativada");
+            resultado.textContent = `❌ Não é ${item}.`;
+            tocarSom(200);
+          }
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function escolherAleatorio(array) {
+      const i = Math.floor(Math.random() * array.length);
+      return array[i];
+    }
+
+    function desativarTodos(container) {
+      const cards = container.querySelectorAll(".card");
+      cards.forEach(c => c.classList.add("desativada"));
+    }
+
+    // Elementos
+    const numeros = Array.from({ length: 100 }, (_, i) => i + 1);
+    const letras = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)); // A-Z
+
+    // Iniciar os jogos
+    criarJogo({
+      tipo: "numeros",
+      elementos: numeros,
+      secreto: escolherAleatorio(numeros),
+      cardsId: "cards-numeros",
+      resultadoId: "resultado-num",
+      tentativasId: "tentativas-num"
+    });
+
+    criarJogo({
+      tipo: "letras",
+      elementos: letras,
+      secreto: escolherAleatorio(letras),
+      cardsId: "cards-letras",
+      resultadoId: "resultado-let",
+      tentativasId: "tentativas-let"
+    });
+  </script>
+
+</body>
+</html>
