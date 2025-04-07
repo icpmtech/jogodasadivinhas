@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo Pai e Filho</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+    }
+
+    .jogadores {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+    }
+
+    .jogo {
+      background: white;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 450px;
+      flex: 1;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .niveis {
+      margin-bottom: 15px;
+    }
+
+    select {
+      padding: 6px;
+      font-size: 1rem;
+    }
+
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: bold;
+      transition: transform 0.2s, background-color 0.3s;
+    }
+
+    .card:hover {
+      transform: scale(1.05);
+    }
+
+    .card.certa {
+      background-color: #b9fbc0 !important;
+    }
+
+    .card.errada {
+      background-color: #ffb3b3;
+    }
+
+    .card.desativada {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .tentativas, .resultado {
+      font-weight: bold;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎮 Jogo Pai e Filho</h1>
+
+  <div class="jogadores">
+    <!-- Jogador Pai -->
+    <div class="jogo">
+      <h2>👨 Pai (Jogador 1)</h2>
+      <div class="niveis">
+        <label for="nivel-pai">Nível: </label>
+        <select id="nivel-pai">
+          <option value="facil">Fácil</option>
+          <option value="medio">Médio</option>
+          <option value="dificil" selected>Difícil</option>
+        </select>
+      </div>
+      <div class="tentativas" id="tentativas-pai">Tentativas: 0</div>
+      <div class="cards-container" id="cards-pai"></div>
+      <div class="resultado" id="resultado-pai"></div>
+    </div>
+
+    <!-- Jogador Filho -->
+    <div class="jogo">
+      <h2>🧒 Filho (Jogador 2)</h2>
+      <div class="niveis">
+        <label for="nivel-filho">Nível: </label>
+        <select id="nivel-filho">
+          <option value="facil">Fácil</option>
+          <option value="medio">Médio</option>
+          <option value="dificil" selected>Difícil</option>
+        </select>
+      </div>
+      <div class="tentativas" id="tentativas-filho">Tentativas: 0</div>
+      <div class="cards-container" id="cards-filho"></div>
+      <div class="resultado" id="resultado-filho"></div>
+    </div>
+  </div>
+
+  <script>
+    function tocarSom(frequencia) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequencia, audioCtx.currentTime);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function escolherAleatorio(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function criarJogoJogador({ jogador, nivel }) {
+      let elementos;
+
+      if (nivel === "facil") {
+        elementos = Array.from({ length: 10 }, (_, i) => i + 1);
+      } else if (nivel === "medio") {
+        elementos = Array.from({ length: 50 }, (_, i) => i + 1);
+      } else {
+        elementos = Array.from({ length: 100 }, (_, i) => i + 1);
+      }
+
+      const secreto = escolherAleatorio(elementos);
+      const container = document.getElementById(`cards-${jogador}`);
+      const resultado = document.getElementById(`resultado-${jogador}`);
+      const tentativasEl = document.getElementById(`tentativas-${jogador}`);
+      let tentativas = 0;
+
+      container.innerHTML = "";
+      resultado.textContent = "";
+      tentativasEl.textContent = "Tentativas: 0";
+
+      elementos.forEach(item => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.textContent = item;
+        card.addEventListener("click", () => {
+          tentativas++;
+          tentativasEl.textContent = `Tentativas: ${tentativas}`;
+          if (item === secreto) {
+            card.classList.add("certa");
+            resultado.textContent = `🎉 Acertaste! Era ${item}.`;
+            tocarSom(800);
+            desativarTodos(container);
+            setTimeout(() => criarJogoJogador({ jogador, nivel }), 2000);
+          } else {
+            card.classList.add("errada", "desativada");
+            resultado.textContent = `❌ Não é ${item}.`;
+            tocarSom(200);
+          }
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function desativarTodos(container) {
+      container.querySelectorAll(".card").forEach(c => c.classList.add("desativada"));
+    }
+
+    // Inicialização para os dois jogadores
+    const nivelPai = document.getElementById("nivel-pai");
+    const nivelFilho = document.getElementById("nivel-filho");
+
+    nivelPai.addEventListener("change", () => criarJogoJogador({ jogador: "pai", nivel: nivelPai.value }));
+    nivelFilho.addEventListener("change", () => criarJogoJogador({ jogador: "filho", nivel: nivelFilho.value }));
+
+    // Arranque inicial
+    criarJogoJogador({ jogador: "pai", nivel: nivelPai.value });
+    criarJogoJogador({ jogador: "filho", nivel: nivelFilho.value });
+  </script>
+
+</body>
+</html>
