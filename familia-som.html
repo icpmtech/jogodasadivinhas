@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo Pai, Mãe e Filho</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 30px;
+    }
+
+    .jogadores {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      justify-content: center;
+    }
+
+    .jogo {
+      background: white;
+      border-radius: 20px;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-width: 380px;
+      width: 100%;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .niveis {
+      margin-bottom: 10px;
+    }
+
+    select {
+      padding: 6px;
+      font-size: 1rem;
+    }
+
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+      gap: 6px;
+      margin: 10px 0;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      transition: transform 0.2s, background-color 0.3s;
+    }
+
+    .card:hover {
+      transform: scale(1.05);
+    }
+
+    .card.certa {
+      background-color: #b9fbc0 !important;
+    }
+
+    .card.errada {
+      background-color: #ffb3b3;
+    }
+
+    .card.desativada {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+
+    .tentativas, .resultado {
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .secao {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎯 Jogo Pai 👨, Mãe 👩 e Filho 🧒</h1>
+
+  <div class="jogadores" id="jogadores">
+    <!-- Jogadores serão criados dinamicamente -->
+  </div>
+
+  <script>
+    const jogadores = [
+      { id: "pai", nome: "👨 Pai" },
+      { id: "mae", nome: "👩 Mãe" },
+      { id: "filho", nome: "🧒 Filho" }
+    ];
+
+    function tocarSom(frequencia) {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequencia, audioCtx.currentTime);
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.start();
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.5);
+      oscillator.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function dizer(texto) {
+      const utterance = new SpeechSynthesisUtterance(texto.toString());
+      utterance.lang = 'pt-PT';
+      speechSynthesis.speak(utterance);
+    }
+
+    function escolherAleatorio(array) {
+      return array[Math.floor(Math.random() * array.length)];
+    }
+
+    function desativarTodos(container) {
+      container.querySelectorAll(".card").forEach(c => c.classList.add("desativada"));
+    }
+
+    function criarJogo({ jogadorId, tipo, nivel }) {
+      const isNumero = tipo === "numeros";
+      const prefix = `${jogadorId}-${tipo}`;
+      let elementos;
+
+      if (isNumero) {
+        if (nivel === "facil") elementos = Array.from({ length: 10 }, (_, i) => i + 1);
+        else if (nivel === "medio") elementos = Array.from({ length: 50 }, (_, i) => i + 1);
+        else elementos = Array.from({ length: 100 }, (_, i) => i + 1);
+      } else {
+        const limite = nivel === "facil" ? 5 : nivel === "medio" ? 13 : 26;
+        elementos = Array.from({ length: limite }, (_, i) => String.fromCharCode(65 + i)); // A-Z
+      }
+
+      const secreto = escolherAleatorio(elementos);
+      const container = document.getElementById(`cards-${prefix}`);
+      const resultado = document.getElementById(`resultado-${prefix}`);
+      const tentativasEl = document.getElementById(`tentativas-${prefix}`);
+      let tentativas = 0;
+
+      container.innerHTML = "";
+      resultado.textContent = "";
+      tentativasEl.textContent = "Tentativas: 0";
+
+      elementos.forEach(item => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.textContent = item;
+        card.addEventListener("click", () => {
+          tentativas++;
+          tentativasEl.textContent = `Tentativas: ${tentativas}`;
+          dizer(item); // FALA O VALOR
+          if (item === secreto) {
+            card.classList.add("certa");
+            resultado.textContent = `🎉 Acertaste! Era ${item}.`;
+            tocarSom(isNumero ? 800 : 1000);
+            desativarTodos(container);
+            setTimeout(() => criarJogo({ jogadorId, tipo, nivel }), 2000);
+          } else {
+            card.classList.add("errada", "desativada");
+            resultado.textContent = `❌ Não é ${item}.`;
+            tocarSom(isNumero ? 200 : 300);
+          }
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function criarInterfaceJogador(jogador) {
+      const div = document.createElement("div");
+      div.classList.add("jogo");
+      div.innerHTML = `
+        <h2>${jogador.nome}</h2>
+
+        <div class="secao">
+          <label for="nivel-${jogador.id}-numeros">Nível (Números): </label>
+          <select id="nivel-${jogador.id}-numeros">
+            <option value="facil">Fácil</option>
+            <option value="medio">Médio</option>
+            <option value="dificil" selected>Difícil</option>
+          </select>
+          <div class="tentativas" id="tentativas-${jogador.id}-numeros"></div>
+          <div class="cards-container" id="cards-${jogador.id}-numeros"></div>
+          <div class="resultado" id="resultado-${jogador.id}-numeros"></div>
+        </div>
+
+        <div class="secao">
+          <label for="nivel-${jogador.id}-letras">Nível (Letras): </label>
+          <select id="nivel-${jogador.id}-letras">
+            <option value="facil">Fácil</option>
+            <option value="medio">Médio</option>
+            <option value="dificil" selected>Difícil</option>
+          </select>
+          <div class="tentativas" id="tentativas-${jogador.id}-letras"></div>
+          <div class="cards-container" id="cards-${jogador.id}-letras"></div>
+          <div class="resultado" id="resultado-${jogador.id}-letras"></div>
+        </div>
+      `;
+      document.getElementById("jogadores").appendChild(div);
+
+      ["numeros", "letras"].forEach(tipo => {
+        const select = document.getElementById(`nivel-${jogador.id}-${tipo}`);
+        select.addEventListener("change", () => {
+          criarJogo({ jogadorId: jogador.id, tipo, nivel: select.value });
+        });
+        criarJogo({ jogadorId: jogador.id, tipo, nivel: select.value });
+      });
+    }
+
+    // Criar os 3 jogadores
+    jogadores.forEach(criarInterfaceJogador);
+  </script>
+
+</body>
+</html>
